@@ -15,7 +15,9 @@ points_sprint = {'1': 10, '2': 9, '3': 8, '4': 7, '5': 6, '6': 5, '7': 4, '8': 3
 Teams = {1: 'Mercedes', 2: 'Red Bull', 3: 'Ferrari', 4: 'Alpine', 5: 'McLaren',
          6: 'Aston Martin', 7: 'Alfa Romeo', 8: 'Alpha Tauri', 9: 'Williams', 10: 'Haas'}
 
-path = f'{os.getcwd()}\SKL_League\SKL_LeagueStandings.csv'
+league_name = 'SKL_League'
+
+path = f'{os.getcwd()}\{league_name}\{league_name}Standings.csv'
 # Bot settings
 
 bot = commands.Bot(command_prefix='!')
@@ -42,15 +44,18 @@ def __remove_unnamed(__standings: pd.DataFrame):
 def __get_player_sum(Standings):
     total_points = []
     for i in range(20):
-        total_points.append(Standings.loc[i][3:].sum())
+        total_points.append(Standings.loc[i][2:-1].sum())
     Standings['Total'] = total_points
     return __remove_unnamed(Standings)
 
 
-def __change_driver_results(Standings: pd.DataFrame, corr_Track: str, changed_driver: str, new_result, points: dict):
-    wanted_driver = __get_driver_index(Standings, changed_driver)
-    Standings.loc[int(wanted_driver), corr_Track] = points[
-        new_result]  # expects Full list of Race-result
+def __change_driver_results(Standings: pd.DataFrame, corr_Track: str, ch_driver: str, new_result, points: dict, fl: bool):
+    wanted_driver = __get_driver_index(Standings, ch_driver)
+    if not fl:
+        Standings.loc[int(wanted_driver), corr_Track] = points[new_result]  # expects Full list of Race-result
+    else:
+        Standings.loc[int(wanted_driver), corr_Track] = points[new_result]+1
+    Standings = __get_player_sum(Standings)
     Standings = __remove_unnamed(Standings)
     return Standings
 
@@ -80,6 +85,7 @@ async def add_driver(ctx, Drivers: pd.DataFrame, new_Driver: list, team_key: lis
 @bot.command(name='add_race', help='')
 async def add_race(ctx, Standings, points_table: dict, Race: str, participants: list, result: list):
     Standings = __remove_unnamed(Standings)
+    Standings.drop(['Total'], axis=1, inplace=True)
     Standings[Race] = 0
     for i in range(len(participants)):
         __change_driver_results(Standings, Race, participants[i], result[i], points_table)
@@ -90,8 +96,8 @@ async def add_race(ctx, Standings, points_table: dict, Race: str, participants: 
 
 
 @bot.command(name='change_result', help='')
-async def change_result(ctx, Standings: pd.DataFrame, corr_Track: str, changed_driver: str, new_result, points: dict):
-    Standings = __change_driver_results(Standings, corr_Track, changed_driver, new_result, points)
+async def change_result(ctx, Standings: pd.DataFrame, corr_Track: str, ch_driver: str, new_result, points: dict, fl: bool):
+    Standings = __change_driver_results(Standings, corr_Track, ch_driver, new_result, points, fl)
     await ctx.send('changes results to given Parameters')
     return Standings
 
@@ -155,7 +161,7 @@ if __name__ == '__main__':
     # Standings = add_race(Standings=Driver_Lineup, points_table=points_race, Race='Monza',
     #                     participants=['Zimmi', 'Sash', 'Malte', 'Ayfl', 'Henry'],
     #                     result=['1', '5', '8', '3', '2'])  # ->  Add Race-result (only 1-12 required) other will get 0 pts. auto.
-    # Standings = __change_driver_results(Driver_Lineup, 'Portimao', 'Malte', '5')
+    # Standings = __change_driver_results(Driver_Lineup, 'Portimao', 'Malte', '5', False)
     Standings = __get_player_sum(Standings)
     team_standings = display_team_standings(Standings)
     print(Standings)  # Debugging print in Console
